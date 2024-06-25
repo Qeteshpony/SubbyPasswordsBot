@@ -1,4 +1,5 @@
 import logging
+import re
 from os import environ
 from password_strength import PasswordStats
 from telegram import Update
@@ -17,6 +18,10 @@ def strengthCheck(text: str, username: str) -> str:
     # Check the "passwords" level and return a message with the rating
     text = text.strip()
     strength = PasswordStats(text).strength()
+    uppers = len(re.findall(r'[A-Z]', text))
+    lowers = len(re.findall(r'[a-z]', text))
+    numbers = len(re.findall(r'[0-9]', text))
+    specials = len(text) - uppers - lowers - numbers
     logging.log(logging.INFO, f"Checking password strength for '{text}' by {username}: {int(strength * 100)}%")
     if strength < .25:
         out = f"Sorry {username}, but your password is weak. You really need to work on that!"
@@ -26,7 +31,8 @@ def strengthCheck(text: str, username: str) -> str:
         out = f"Quite good but still not perfect. Do better next time, {username}!"
     else:
         out = f"Wow! That is a really strong password. I am proud of you, {username}!"
-    out = out + f" ({int(strength * 100)}%)"
+    out = out + (f"\nLength: {len(text)}, Uppercase: {uppers}, Lowercase: {lowers}, Numbers: {numbers}, "
+                 f"Special: {specials}, Score: {int(strength * 100)}%")
     return out
 
 
