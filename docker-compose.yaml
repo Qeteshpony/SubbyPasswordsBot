@@ -1,0 +1,8 @@
+name: subbypasswordsbot
+
+services:
+  bot:
+    build: ./
+    restart: unless-stopped
+    env_file:
+      - bot.env
