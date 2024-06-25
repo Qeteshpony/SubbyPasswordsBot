@@ -41,8 +41,13 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
             username = update.message.reply_to_message.from_user.first_name
         else:
             username = "@" + update.message.reply_to_message.from_user.username
+        if update.message.quote is not None:
+            # The bot was ordered to check a quoted password
+            text = update.message.quote['text']
+        else:
+            text = update.message.reply_to_message.text
         await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=strengthCheck(update.message.reply_to_message.text, username))
+                                       text=strengthCheck(text, username))
     else:
         # The bot was directly spoken to
         text = update.message.text
