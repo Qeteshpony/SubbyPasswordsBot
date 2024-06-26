@@ -59,7 +59,15 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text
         if text.startswith("/"):
             # remove the command from the input
-            text = text[text.find(" ")+1:]
+            parts = text.split(" ", 1)
+            if len(parts) == 1:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="You need to reply to the password you want to check.\n"
+                         "You can also quote it or enter it with the command."
+                )
+                return
+            text = parts[1]
         if update.message.from_user.username is None:
             username = update.message.from_user.first_name
         else:
