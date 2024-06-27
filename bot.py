@@ -40,8 +40,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="You're a cutie!")
 
 
+async def helptext(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="You need to reply to the password you want to check.\n"
+             "You can also quote it or enter it with the command."
+    )
+
+
 async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.reply_to_message is not None:
+        if update.message.reply_to_message.text is None:
+            # Reply was not to text, so a sticker or similar
+            await helptext(update, context)
+            return
         # The bot was ordered to check a password from another message by replying to it
         if update.message.reply_to_message.from_user.username is None:
             username = update.message.reply_to_message.from_user.first_name
@@ -57,23 +69,23 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # The bot was directly spoken to
         text = update.message.text
-        if text.startswith("/"):
-            # remove the command from the input
-            parts = text.split(" ", 1)
-            if len(parts) == 1:
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text="You need to reply to the password you want to check.\n"
-                         "You can also quote it or enter it with the command."
-                )
-                return
-            text = parts[1]
-        if update.message.from_user.username is None:
-            username = update.message.from_user.first_name
+        if text is not None:
+            if text.startswith("/"):
+                # remove the command from the input
+                parts = text.split(" ", 1)
+                if len(parts) == 1:
+                    await helptext(update, context)
+                    return
+                text = parts[1]
+            if update.message.from_user.username is None:
+                username = update.message.from_user.first_name
+            else:
+                username = "@" + update.message.from_user.username
+            await context.bot.send_message(chat_id=update.effective_chat.id,
+                                           text=strengthCheck(text, username))
         else:
-            username = "@" + update.message.from_user.username
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=strengthCheck(text, username))
+            # Text is None
+            await helptext(update, context)
 
 
 if __name__ == '__main__':
@@ -86,11 +98,13 @@ if __name__ == '__main__':
 
     start_handler = CommandHandler('start', start)
     check_handler = CommandHandler('check', check)
+    help_handler = CommandHandler('help', helptext)
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE, check)
 
     application.add_handler(start_handler)
-    application.add_handler(echo_handler)
     application.add_handler(check_handler)
+    application.add_handler(help_handler)
+    application.add_handler(echo_handler)
 
     # let's fly...
     application.run_polling()
