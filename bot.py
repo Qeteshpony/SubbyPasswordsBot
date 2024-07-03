@@ -22,7 +22,7 @@ def strengthCheck(text: str, username: str) -> str:
     lowers = len(re.findall(r'[a-z]', text))
     numbers = len(re.findall(r'[0-9]', text))
     specials = len(text) - uppers - lowers - numbers
-    logging.log(logging.INFO, f"Checking password strength for '{text}' by {username}: {int(strength * 100)}%")
+    logging.log(logging.DEBUG, f"Checking password strength for '{text}' by {username}: {int(strength * 100)}%")
     if strength < .25:
         out = f"Sorry {username}, but your password is weak. You really need to work on that!"
     elif strength < 0.50:
@@ -88,6 +88,12 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await helptext(update, context)
 
 
+async def privacy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text="This bot does not store any data whatsoever.\n"
+                                        "Any input and connected data is immediately "
+                                        "discarded after answerting your query.")
+
 if __name__ == '__main__':
     # check if the env variable for the api-token is set
     if environ["API_TOKEN"] is None:
@@ -99,11 +105,13 @@ if __name__ == '__main__':
     start_handler = CommandHandler('start', start)
     check_handler = CommandHandler('check', check)
     help_handler = CommandHandler('help', helptext)
+    privacy_handler = CommandHandler('privacy', privacy)
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE, check)
 
     application.add_handler(start_handler)
     application.add_handler(check_handler)
     application.add_handler(help_handler)
+    application.add_handler(privacy_handler)
     application.add_handler(echo_handler)
 
     # let's fly...
