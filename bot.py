@@ -92,7 +92,7 @@ async def privacy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text="This bot does not store any data whatsoever.\n"
                                         "Any input and connected data is immediately "
-                                        "discarded after answerting your query.")
+                                        "discarded after answering your query.")
 
 if __name__ == '__main__':
     # check if the env variable for the api-token is set
