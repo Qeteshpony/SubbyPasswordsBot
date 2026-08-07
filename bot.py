@@ -2,7 +2,7 @@ import logging
 import re
 from os import environ
 from password_strength import PasswordStats
-from telegram import Update
+from telegram import Update, Message
 from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes
 
 
@@ -43,49 +43,50 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def helptext(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="You need to reply to the password you want to check.\n"
-             "You can also quote it or enter it with the command."
+        text="Reply to the password you want to check."
     )
 
 
 async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.reply_to_message is not None:
-        if update.message.reply_to_message.text is None:
-            # Reply was not to text, so a sticker or similar
-            await helptext(update, context)
-            return
-        # The bot was ordered to check a password from another message by replying to it
-        if update.message.reply_to_message.from_user.username is None:
-            username = update.message.reply_to_message.from_user.first_name
+    if update.message:
+        if update.message.reply_to_message is not None:
+            if update.message.reply_to_message.text is None:
+                # Reply was not to text, so a sticker or similar
+                await helptext(update, context)
+                return
+            # The bot was ordered to check a password from another message by replying to it
+            if update.message.reply_to_message.from_user:
+                if update.message.reply_to_message.from_user.username is None:
+                    username = update.message.reply_to_message.from_user.first_name
+                else:
+                    username = "@" + update.message.reply_to_message.from_user.username
+                if update.message.quote is not None:
+                    # The bot was ordered to check a quoted password
+                    text = update.message.quote.text
+                else:
+                    text = update.message.reply_to_message.text
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text=strengthCheck(text, username))
         else:
-            username = "@" + update.message.reply_to_message.from_user.username
-        if update.message.quote is not None:
-            # The bot was ordered to check a quoted password
-            text = update.message.quote['text']
-        else:
-            text = update.message.reply_to_message.text
-        await context.bot.send_message(chat_id=update.effective_chat.id,
-                                       text=strengthCheck(text, username))
-    else:
-        # The bot was directly spoken to
-        text = update.message.text
-        if text is not None:
-            if text.startswith("/"):
-                # remove the command from the input
-                parts = text.split(" ", 1)
-                if len(parts) == 1:
-                    await helptext(update, context)
-                    return
-                text = parts[1]
-            if update.message.from_user.username is None:
-                username = update.message.from_user.first_name
+            # The bot was directly spoken to
+            text = update.message.text
+            if text is not None:
+                if text.startswith("/"):
+                    # remove the command from the input
+                    parts = text.split(" ", 1)
+                    if len(parts) == 1:
+                        await helptext(update, context)
+                        return
+                    text = parts[1]
+                if update.message.from_user.username is None:
+                    username = update.message.from_user.first_name
+                else:
+                    username = "@" + update.message.from_user.username
+                await context.bot.send_message(chat_id=update.effective_chat.id,
+                                               text=strengthCheck(text, username))
             else:
-                username = "@" + update.message.from_user.username
-            await context.bot.send_message(chat_id=update.effective_chat.id,
-                                           text=strengthCheck(text, username))
-        else:
-            # Text is None
-            await helptext(update, context)
+                # Text is None
+                await helptext(update, context)
 
 
 async def privacy(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -93,6 +94,13 @@ async def privacy(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                    text="This bot does not store any data whatsoever.\n"
                                         "Any input and connected data is immediately "
                                         "discarded after answering your query.")
+
+
+class BotMentionFilter(filters.MessageFilter):
+    def filter(self, message: Message) -> bool:
+        bot_username = message.get_bot().username
+        return message.text is not None and f"@{bot_username}" in message.text
+
 
 if __name__ == '__main__':
     # check if the env variable for the api-token is set
@@ -106,6 +114,8 @@ if __name__ == '__main__':
     check_handler = CommandHandler('check', check)
     help_handler = CommandHandler('help', helptext)
     privacy_handler = CommandHandler('privacy', privacy)
+    reply_mention_handler = MessageHandler(filters.REPLY & BotMentionFilter(), check)
+    mention_handler = MessageHandler(BotMentionFilter(), helptext)
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND) & filters.ChatType.PRIVATE, check)
 
     application.add_handler(start_handler)
@@ -113,6 +123,8 @@ if __name__ == '__main__':
     application.add_handler(help_handler)
     application.add_handler(privacy_handler)
     application.add_handler(echo_handler)
+    application.add_handler(reply_mention_handler)
+    application.add_handler(mention_handler)
 
     # let's fly...
     application.run_polling()
